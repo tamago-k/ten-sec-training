@@ -5,8 +5,8 @@ type Exercise = {
   id: number;
   name: string;
   duration: number;
-  target?: string;  // 追加で受け取る想定
-  points?: string;  // 追加で受け取る想定
+  target?: string;
+  points?: string;
 };
 
 type Props = {
@@ -16,6 +16,8 @@ type Props = {
 export default function ExerciseCard({ onComplete }: Props) {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [count, setCount] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [completed, setCompleted] = useState(false); // ← フラグ追加
 
   useEffect(() => {
     const fetchExercise = async () => {
@@ -47,62 +49,48 @@ export default function ExerciseCard({ onComplete }: Props) {
     checkStorage();
   }, []);
 
-  const handleClick = () => {
-    const newCount = count + 1;
-    const now = new Date().toISOString();
-    localStorage.setItem(
-      'exerciseData',
-      JSON.stringify({ count: newCount, lastCompletedAt: now })
-    );
-    setCount(newCount);
-    onComplete(newCount);
-  };
+  // ⏱️ タイマー処理（1秒ごとにカウントダウン）
+  useEffect(() => {
+    if (timeLeft <= 0 || completed) return;
+
+    const timer = setTimeout(() => {
+      setTimeLeft(timeLeft - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [timeLeft, completed]);
+
+  // ⏹️ カウントが終わったときに onComplete を呼ぶ（1回だけ）
+  useEffect(() => {
+    if (timeLeft === 0 && !completed) {
+      setCompleted(true);
+
+      const newCount = count + 1;
+      const now = new Date().toISOString();
+      localStorage.setItem(
+        'exerciseData',
+        JSON.stringify({ count: newCount, lastCompletedAt: now })
+      );
+      setCount(newCount);
+      onComplete(newCount);
+    }
+  }, [timeLeft, completed]);
 
   if (!exercise) return <div>読み込み中...</div>;
 
   return (
     <div style={{ textAlign: 'center' }}>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '0.5rem' }}>今回の筋トレ</h2>
+      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>今回の筋トレ</h2>
       <img
         src={`/images/${exercise.id}.png`}
         alt={exercise.name}
-        style={{
-          display: 'block',
-          margin: '0 auto 1rem auto',
-          width: '6rem',
-          height: '6rem',
-          objectFit: 'contain',
-        }}
+        style={{ width: '200px', height: '200px', objectFit: 'contain', marginBottom: '10px' }}
       />
-      <p style={{ fontSize: '2rem', marginBottom: '1rem' }}>{exercise.name}</p>
-      {exercise.target && (
-        <p style={{ fontSize: '0.875rem', fontWeight: '600', marginTop: '1rem' }}>
-          目標: {exercise.target}
-        </p>
-      )}
-      {exercise.points && (
-        <p style={{ color: '#4B5563', fontSize: '0.875rem', marginBottom: '1rem' }}>
-          {exercise.points}
-        </p>
-      )}
-      <p style={{ color: '#6B7280', marginBottom: '1.5rem' }}>全力で10秒！</p>
-      <button
-        onClick={handleClick}
-        style={{
-          cursor: 'pointer',
-          backgroundColor: '#16A34A',
-          color: 'white',
-          padding: '0.75rem 2rem',
-          border: 'none',
-          borderRadius: '9999px',
-          fontSize: '1rem',
-          transition: 'background-color 0.3s ease',
-        }}
-        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#15803D')}
-        onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#16A34A')}
-      >
-        完了！
-      </button>
+      <p style={{ fontSize: '24px', marginBottom: '8px' }}>{exercise.name}</p>
+      <p style={{ color: '#777', marginTop: '10px' }}>全力で10秒！</p>
+      <p style={{ fontSize: '40px', marginTop: '0px', fontWeight: 'bold', lineHeight: '1' }}>{timeLeft}</p>
+      <p style={{ fontWeight: 'bold' }}>目標: {exercise.target}</p>
+      <p style={{ color: '#555', fontSize: '14px' }}>{exercise.points}</p>
     </div>
   );
 }
